@@ -8,6 +8,7 @@ class Player:
 		self.cards = [[] for i in range(num_colors)]
 		self.discards = [[] for i in range(num_colors)]
 		self.hand = [[] for i in range(num_colors)]
+		self.actions = ["DISCARD", "USE"]
 
 	def add_card(self, card):
 		color,number = card
@@ -65,6 +66,15 @@ class Player:
 		print "************************* HAND *******************************"
 		for i in range(len(self.hand)):
 			print "%8s %30s" % (self.colors[i], str(self.hand[i]))
+
+	def get_card(self, player_num):
+		input_color = raw_input('Player ' + str(player_num) + ' Enter color from ' + str(self.colors) + ": ");
+		color = self.colors.index(input_color.upper())
+		input_number = raw_input('Player ' + str(player_num) + ' Enter number: ')
+		number = int(input_number)
+		input_action = raw_input('Player ' + str(player_num) + ' Enter action (DISCARD OR USE): ')
+		action = self.actions.index(input_action.upper())
+		return color, number, action
 		
 class Board:
 	def __init__(self, num_colors):
@@ -72,7 +82,6 @@ class Board:
 		self.players = [Player(num_colors), Player(num_colors)]
 		self.colors = ["RED", "GREEN", "BLUE", "YELLOW", "ORANGE", "VIOLET"]
 		#self.print_colors = ["RED    :", "GREEN  :", "BLUE   :", "YELLOW :", "ORANGE :", "VIOLET  :"]
-		self.actions = ["DISCARD", "USE"]
 		self.colors = self.colors[0:num_colors]
 		self.deck = []
 		for color in range(num_colors):
@@ -109,12 +118,7 @@ class Board:
 			while True:
 				try:
 					self.display(player_num)
-					input_color = raw_input('Player ' + str(player_num) + ' Enter color from ' + str(self.colors) + ": ");
-					color = self.colors.index(input_color.upper())
-					input_number = raw_input('Player ' + str(player_num) + ' Enter number: ')
-					number = int(input_number)
-					input_action = raw_input('Player ' + str(player_num) + ' Enter action (DISCARD OR USE): ')
-					action = self.actions.index(input_action.upper())
+					color, number, action = self.players[player_num].get_card(player_num)
 					if (self.players[player_num].play_card((color, number), action)):
 						self.players[player_num].add_card(self.deck.pop())
 						break
@@ -134,6 +138,6 @@ class Board:
 		print "Player 1: ",self.players[1].count()
 			
 
-if __name__ == "main":
+if __name__ == "__main__":
 	board = Board(5)
 	board.play()
