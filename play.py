@@ -1,7 +1,8 @@
+from optparse import OptionParser
 import time
 import random
 import os
-class Player:
+class Player(object):
 	def __init__(self, num_colors):
 		assert(num_colors == 5 or num_colors == 6)
 		self.colors = ["RED", "GREEN", "BLUE", "YELLOW", "ORANGE", "VIOLET"]
@@ -19,8 +20,7 @@ class Player:
 
 	# card is a (color,number) tuple
 	# hand is 1 and numbers are 2 to 10
-	def play_card(self, card, action):
-		color,number = card
+	def valid_card(self, color, number):
 		if (color < 0 or color >=  len(self.cards)):
 			print "***** Invalid color *****"
 			return False
@@ -30,12 +30,17 @@ class Player:
 		if not self.check_in_hand(color, number):
 			print "***** Card not in hand *****"
 			return False
+
+	def play_card(self, card, action):
+		color,number = card
+		if self.valid_card(color, number) == False:
+			return False
 		if action == 0:
 			self.discards[color].append(number)
 			self.hand[color].remove(number)
 			return True
 		if len(self.cards[color]) > 0:
-			topnumber = self.cards[color][-1]  
+			topnumber = self.cards[color][-1]
 			if (topnumber > number):
 				print "***** Card not in order *****"
 				return False
@@ -45,7 +50,7 @@ class Player:
 		self.cards[color].append(number)
 		self.hand[color].remove(number)
 		return True
-    
+
 	def count(self):
 		tot = 0;
 		for column in self.cards:
@@ -75,13 +80,31 @@ class Player:
 		input_action = raw_input('Player ' + str(player_num) + ' Enter action (DISCARD OR USE): ')
 		action = self.actions.index(input_action.upper())
 		return color, number, action
+
+class AlgoPlayer(Player):
+	def __init__(self, num_colors):
+		Player.__init__(self, num_colors)
+
+	def get_card(self, player_num):
+		while True:
+			color = random.randint(0, len(self.hand)-1)
+			if len(self.hand[color]) > 0:
+				return color, random.choice(self.hand[color]), random.randint(0, len(self.actions)-1)
 		
 class Board:
-	def __init__(self, num_colors):
+	def __init__(self, mode, num_colors):
+		assert(mode >=0 and mode <= 2)
+		assert(num_colors == 5 or num_colors == 6)
 		self.num_colors = num_colors
-		self.players = [Player(num_colors), Player(num_colors)]
+		self.mode = mode
+		if self.mode == 0:
+			self.players = [AlgoPlayer(num_colors), Player(num_colors)]
+		elif self.mode == 1:
+			self.players = [Player(num_colors), Player(num_colors)]
+		else:
+			self.players = [AlgoPlayer(num_colors), AlgoPlayer(num_colors)]
+		random.shuffle(self.players)
 		self.colors = ["RED", "GREEN", "BLUE", "YELLOW", "ORANGE", "VIOLET"]
-		#self.print_colors = ["RED    :", "GREEN  :", "BLUE   :", "YELLOW :", "ORANGE :", "VIOLET  :"]
 		self.colors = self.colors[0:num_colors]
 		self.deck = []
 		for color in range(num_colors):
@@ -98,8 +121,9 @@ class Board:
 		print "************************* BOARD *******************************"
 		for i in range(self.num_colors):
 			discards = self.players[0].discards[i] + self.players[1].discards[i]
-			print "%8s P0: %30s UNUSED: %30s P1: %30s %s" % (self.colors[i], str(self.players[0].cards[i]), str(discards), str(self.players[1].cards[i]), self.colors[i]) 
-		self.players[player_num].show_hand()
+			print "%8s P0: %30s UNUSED: %30s P1: %30s %s" % (self.colors[i], str(self.players[0].cards[i]), str(discards), str(self.players[1].cards[i]), self.colors[i])
+		if player_num == 0 or player_num == 1:
+			self.players[player_num].show_hand()
 
 	def distribute(self):
 		num_cards = 0
@@ -107,7 +131,6 @@ class Board:
 			player_num = num_cards % 2
 			self.players[player_num].add_card(self.deck.pop())
 			num_cards = num_cards + 1
-
 
 	def play(self):
 		self.distribute()
@@ -117,27 +140,36 @@ class Board:
 			player_num = num_cards % 2
 			while True:
 				try:
-					self.display(player_num)
+					if self.mode != 2:
+						self.display(player_num)
+						print "Remaining cards in deck: ", len(self.deck)
 					color, number, action = self.players[player_num].get_card(player_num)
 					if (self.players[player_num].play_card((color, number), action)):
 						self.players[player_num].add_card(self.deck.pop())
 						break
 					else:
-						print "Invalid card. Try again"
-						dummy = raw_input('Press any button to continue')
+						if type(self.players[player_num]).__name__ == "Player":
+							print "Invalid card(",self.colors[color], ",", number, ",", action, "). Try again"
+							dummy = raw_input('Press any button to continue')
 				except (ValueError):
 					print "Invalid input. Try again"
 					dummy = raw_input('Press any button to continue')
-			print "Remaining cards in deck: ", len(self.deck)
-			dummy = raw_input('Press any button to continue')
-			os.system('clear')
-			print 'Sleeping 3 seconds'
-			time.sleep(3)
+			if self.mode == 1:
+				os.system('clear')
+				print 'Sleeping 3 seconds'
+				time.sleep(3)
 			num_cards = num_cards + 1
+		self.display(-1)
 		print "Player 0: ",self.players[0].count()
 		print "Player 1: ",self.players[1].count()
 			
 
 if __name__ == "__main__":
-	board = Board(5)
+	parser = OptionParser()
+	parser.add_option("-m", "--mode", dest="mode", default=0, type="int",
+                  help="0) (default) human vs computer 1) humans 2) computers")
+	parser.add_option("-n", "--num_colors", dest="num_colors", type="int", help=" 5(default) or 6", default = 5)
+
+	(options, args) = parser.parse_args()
+	board = Board(options.mode, options.num_colors)
 	board.play()
